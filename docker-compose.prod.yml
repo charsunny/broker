@@ -1,10 +1,11 @@
-# 生产部署 (dokploy)。
-# - PostgreSQL / Redis 用阿里云托管服务, 通过 DATABASE_URL / REDIS_URL 环境变量配置
-#   (不在此拉容器)。
-# - 单域名 broker.wxenv.com + 路径代理, 在 dokploy UI 里配 (本文件不写 Traefik labels):
-#     /      → web   (Broker Flutter, 端口 80)
-#     /api   → api   (NestJS, 端口 3000; 不 strip 前缀, API 自身就在 /api/v1 下)
-#     /admin → admin (端口 80; 不 strip 前缀, 已按 /admin/ base 打包)
+# 生产部署 (dokploy + Traefik)。
+# - PostgreSQL / Redis 用阿里云托管, 通过 DATABASE_URL / REDIS_URL 环境变量配置。
+# - 单域名 broker.wxenv.com + 路径代理。dokploy 的 Compose 部署不会自动注入域名,
+#   必须把 Traefik label + dokploy-network 写在这里 (照搬本机 mercur 项目的成功写法):
+#     /      → web   (Flutter, 端口 80)
+#     /api   → api   (NestJS, 端口 3000; PathPrefix 优先级高, 不 strip)
+#     /admin → admin (端口 80; PathPrefix 优先级高, 不 strip)
+#   http(web 入口) 走 redirect-to-https@file 跳转, https(websecure) 用 letsencrypt 签证书。
 services:
   api:
     build:
@@ -13,9 +14,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      # 阿里云 RDS PostgreSQL (如需 SSL 在 URL 末尾加 ?sslmode=require)
       DATABASE_URL: ${DATABASE_URL:?set-aliyun-rds-postgres-url}
-      # 阿里云 Redis (带密码: redis://:password@host:6379; 走 TLS 用 rediss://)
       REDIS_URL: ${REDIS_URL:?set-aliyun-redis-url}
       JWT_SECRET: ${JWT_SECRET:?set-a-strong-secret}
       JWT_EXPIRES_IN: 12h
@@ -24,16 +23,45 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       LLM_MODEL: ${LLM_MODEL:-}
+    networks: [dokploy-network]
     restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - "traefik.http.routers.broker-api.rule=Host(`broker.wxenv.com`) && PathPrefix(`/api`)"
+      - traefik.http.routers.broker-api.entrypoints=web
+      - traefik.http.routers.broker-api.middlewares=redirect-to-https@file
+      - traefik.http.routers.broker-api.priority=100
+      - traefik.http.routers.broker-api.service=broker-api
+      - "traefik.http.routers.broker-api-tls.rule=Host(`broker.wxenv.com`) && PathPrefix(`/api`)"
+      - traefik.http.routers.broker-api-tls.entrypoints=websecure
+      - traefik.http.routers.broker-api-tls.tls.certresolver=letsencrypt
+      - traefik.http.routers.broker-api-tls.priority=100
+      - traefik.http.routers.broker-api-tls.service=broker-api
+      - traefik.http.services.broker-api.loadbalancer.server.port=3000
 
   web:
     build:
       context: .
       dockerfile: apps/app/Dockerfile
       args:
-        # 前端 API 基址在编译期注入 (单域名 + /api 路径)
         API_BASE: ${WEB_API_BASE:-https://broker.wxenv.com/api/v1}
+    networks: [dokploy-network]
     restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - "traefik.http.routers.broker-web.rule=Host(`broker.wxenv.com`)"
+      - traefik.http.routers.broker-web.entrypoints=web
+      - traefik.http.routers.broker-web.middlewares=redirect-to-https@file
+      - traefik.http.routers.broker-web.priority=1
+      - traefik.http.routers.broker-web.service=broker-web
+      - "traefik.http.routers.broker-web-tls.rule=Host(`broker.wxenv.com`)"
+      - traefik.http.routers.broker-web-tls.entrypoints=websecure
+      - traefik.http.routers.broker-web-tls.tls.certresolver=letsencrypt
+      - traefik.http.routers.broker-web-tls.priority=1
+      - traefik.http.routers.broker-web-tls.service=broker-web
+      - traefik.http.services.broker-web.loadbalancer.server.port=80
 
   admin:
     build:
@@ -41,4 +69,23 @@ services:
       dockerfile: apps/admin/Dockerfile
       args:
         VITE_API_BASE: ${ADMIN_API_BASE:-https://broker.wxenv.com/api/v1}
+    networks: [dokploy-network]
     restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - "traefik.http.routers.broker-admin.rule=Host(`broker.wxenv.com`) && PathPrefix(`/admin`)"
+      - traefik.http.routers.broker-admin.entrypoints=web
+      - traefik.http.routers.broker-admin.middlewares=redirect-to-https@file
+      - traefik.http.routers.broker-admin.priority=100
+      - traefik.http.routers.broker-admin.service=broker-admin
+      - "traefik.http.routers.broker-admin-tls.rule=Host(`broker.wxenv.com`) && PathPrefix(`/admin`)"
+      - traefik.http.routers.broker-admin-tls.entrypoints=websecure
+      - traefik.http.routers.broker-admin-tls.tls.certresolver=letsencrypt
+      - traefik.http.routers.broker-admin-tls.priority=100
+      - traefik.http.routers.broker-admin-tls.service=broker-admin
+      - traefik.http.services.broker-admin.loadbalancer.server.port=80
+
+networks:
+  dokploy-network:
+    external: true

@@ -41,15 +41,14 @@
    LLM_BASE_URL=https://api.deepseek.com/v1
    LLM_MODEL=deepseek-chat
    ```
-4. **域名 + 路径路由 (dokploy UI, 同一个 host `broker.wxenv.com`)**: 给三个服务各加一条 Domain:
-   | 服务 | Host | Path | Port | Strip Path |
-   |---|---|---|---|---|
-   | `web` | broker.wxenv.com | `/` | 80 | 否 |
-   | `api` | broker.wxenv.com | `/api` | 3000 | **否** |
-   | `admin` | broker.wxenv.com | `/admin` | 80 | **否** |
-   - 在 host 上开自动 SSL (Let's Encrypt), 一张证书覆盖 broker.wxenv.com。
-   - 确保 `/api`、`/admin` 的路由优先级高于 `/` (Traefik 默认按路径长度优先, 一般自动; 若 dokploy 有 priority 字段, 给这两个设更高)。
-   - **不要开 strip/path-rewrite**: `/api` 透传给 api(它本身监听 `/api/v1`), `/admin` 透传给 admin(已按 `/admin/` 打包)。
+4. **域名/SSL (已在 compose 里写好, 不用在 dokploy UI 配)**:
+   `docker-compose.prod.yml` 已带 Traefik label + `dokploy-network` —— 单 host `broker.wxenv.com`
+   的 `/` `/api` `/admin` 路径路由, https(websecure) 用 `letsencrypt` 签证书, http(web) 自动跳 https。
+   - **关键: dokploy 的 Compose 部署不会自动注入域名(那是 Application 类型才有),所以域名必须靠
+     compose 里的 label —— 不要再在 dokploy UI 给这几个服务配域名(会冲突)。** 直接 Deploy 即可。
+   - 前提: dokploy 自带 Traefik 在用, certresolver 名为 `letsencrypt`(本机已确认)。若你的不叫这个,
+     改 compose 里的 `tls.certresolver`。
+   - `/api`、`/admin` 已设 `priority=100` 高于 `/` 的 `priority=1`; 都不 strip 前缀。
 5. **Deploy**: 点部署。`web` 是**预构建静态产物** (`apps/app/web_dist`) 直接进 nginx, 构建很快
    (部署端不装 Flutter SDK); `api` 含 isolated-vm 原生编译稍慢; `admin` 是 Vite 构建。
    api 启动时自动迁移建表到阿里云 PG。
