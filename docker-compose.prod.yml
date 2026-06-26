@@ -1,33 +1,8 @@
-# 生产部署 (dokploy + Traefik)。三个对外服务挂 wxenv.com 子域名, PG/Redis 走内网。
-# 子域名:
-#   broker.wxenv.com → Broker Flutter Web
-#   admin.wxenv.com  → Admin 后台
-#   api.wxenv.com    → NestJS API
+# 生产部署 (dokploy)。
+# - PostgreSQL / Redis 用阿里云托管服务, 通过 DATABASE_URL / REDIS_URL 环境变量配置
+#   (不在此拉容器)。
+# - 域名 / SSL 在 dokploy UI 里给 api / web / admin 各自配置 (本文件不写 Traefik labels)。
 services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: insurance
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-insurance}
-      POSTGRES_DB: insurance
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks: [internal]
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U insurance"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  redis:
-    image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes"]
-    volumes:
-      - redisdata:/data
-    networks: [internal]
-    restart: unless-stopped
-
   api:
     build:
       context: .
@@ -35,8 +10,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgresql://insurance:${POSTGRES_PASSWORD:-insurance}@postgres:5432/insurance
-      REDIS_URL: redis://redis:6379
+      # 阿里云 RDS PostgreSQL (如需 SSL 在 URL 末尾加 ?sslmode=require)
+      DATABASE_URL: ${DATABASE_URL:?set-aliyun-rds-postgres-url}
+      # 阿里云 Redis (带密码: redis://:password@host:6379; 走 TLS 用 rediss://)
+      REDIS_URL: ${REDIS_URL:?set-aliyun-redis-url}
       JWT_SECRET: ${JWT_SECRET:?set-a-strong-secret}
       JWT_EXPIRES_IN: 12h
       BROKER_PHONE_WHITELIST: ${BROKER_PHONE_WHITELIST:-}
@@ -44,58 +21,21 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       LLM_MODEL: ${LLM_MODEL:-}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    networks: [internal, dokploy-network]
     restart: unless-stopped
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=dokploy-network
-      - "traefik.http.routers.api.rule=Host(`api.wxenv.com`)"
-      - traefik.http.routers.api.entrypoints=websecure
-      - traefik.http.routers.api.tls.certresolver=letsencrypt
-      - traefik.http.services.api.loadbalancer.server.port=3000
 
   web:
     build:
       context: .
       dockerfile: apps/app/Dockerfile
       args:
-        API_BASE: https://api.wxenv.com/api/v1
-    networks: [dokploy-network]
+        # 前端 API 基址在编译期注入 (= dokploy 里给 api 配的域名)
+        API_BASE: ${WEB_API_BASE:-https://api.wxenv.com/api/v1}
     restart: unless-stopped
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=dokploy-network
-      - "traefik.http.routers.broker.rule=Host(`broker.wxenv.com`)"
-      - traefik.http.routers.broker.entrypoints=websecure
-      - traefik.http.routers.broker.tls.certresolver=letsencrypt
-      - traefik.http.services.broker.loadbalancer.server.port=80
 
   admin:
     build:
       context: .
       dockerfile: apps/admin/Dockerfile
       args:
-        VITE_API_BASE: https://api.wxenv.com/api/v1
-    networks: [dokploy-network]
+        VITE_API_BASE: ${ADMIN_API_BASE:-https://api.wxenv.com/api/v1}
     restart: unless-stopped
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=dokploy-network
-      - "traefik.http.routers.admin.rule=Host(`admin.wxenv.com`)"
-      - traefik.http.routers.admin.entrypoints=websecure
-      - traefik.http.routers.admin.tls.certresolver=letsencrypt
-      - traefik.http.services.admin.loadbalancer.server.port=80
-
-networks:
-  internal: {}
-  dokploy-network:
-    external: true
-
-volumes:
-  pgdata: {}
-  redisdata: {}
