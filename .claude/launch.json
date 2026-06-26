@@ -2,16 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "flutter-web",
+      "name": "broker-pruned",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "5050", "--directory", "apps/app/build/web"],
-      "port": 5050
-    },
-    {
-      "name": "admin-subpath",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "4400", "--directory", "/tmp/adminroot"],
-      "port": 4400
+      "runtimeArgs": ["-m", "http.server", "5070", "--directory", "/tmp/brokerroot"],
+      "port": 5070
     }
   ]
 }

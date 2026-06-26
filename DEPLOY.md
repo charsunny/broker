@@ -50,8 +50,10 @@
    - 在 host 上开自动 SSL (Let's Encrypt), 一张证书覆盖 broker.wxenv.com。
    - 确保 `/api`、`/admin` 的路由优先级高于 `/` (Traefik 默认按路径长度优先, 一般自动; 若 dokploy 有 priority 字段, 给这两个设更高)。
    - **不要开 strip/path-rewrite**: `/api` 透传给 api(它本身监听 `/api/v1`), `/admin` 透传给 admin(已按 `/admin/` 打包)。
-5. **Deploy**: 首次构建较慢 (api 含 isolated-vm 原生编译, web 用 Flutter SDK 镜像)。
+5. **Deploy**: 点部署。`web` 是**预构建静态产物** (`apps/app/web_dist`) 直接进 nginx, 构建很快
+   (部署端不装 Flutter SDK); `api` 含 isolated-vm 原生编译稍慢; `admin` 是 Vite 构建。
    api 启动时自动迁移建表到阿里云 PG。
+   > 改了 Broker 前端代码后, 本地跑 `bash scripts/build-web.sh` 重建 `web_dist` 并提交, 再部署。
 
 ## 验证
 

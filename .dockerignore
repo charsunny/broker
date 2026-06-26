@@ -1,6 +1,8 @@
 **/node_modules
 **/dist
 **/build
+# 例外: Broker 预构建静态产物要进镜像
+!apps/app/web_dist
 **/.turbo
 apps/app/.dart_tool
 apps/app/.flutter-plugins-dependencies
