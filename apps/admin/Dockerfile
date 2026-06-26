@@ -10,10 +10,11 @@ COPY apps/admin/package.json apps/admin/package.json
 RUN pnpm install --frozen-lockfile --filter @insurance/admin
 COPY apps/admin apps/admin
 # API 基址在编译期注入
-ARG VITE_API_BASE=https://api.wxenv.com/api/v1
+ARG VITE_API_BASE=https://broker.wxenv.com/api/v1
 RUN VITE_API_BASE=${VITE_API_BASE} pnpm --filter @insurance/admin build
 
 FROM nginx:alpine AS runner
 COPY apps/admin/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder /app/apps/admin/dist /usr/share/nginx/html
+# 挂在 /admin 子路径: 产物放到 html/admin, 配合 vite base=/admin/
+COPY --from=builder /app/apps/admin/dist /usr/share/nginx/html/admin
 EXPOSE 80

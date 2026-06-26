@@ -8,10 +8,10 @@
       "port": 5050
     },
     {
-      "name": "admin",
+      "name": "admin-subpath",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "4300", "--directory", "apps/admin/dist"],
-      "port": 4300
+      "runtimeArgs": ["-m", "http.server", "4400", "--directory", "/tmp/adminroot"],
+      "port": 4400
     }
   ]
 }

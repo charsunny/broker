@@ -6,7 +6,7 @@ COPY apps/app/pubspec.yaml apps/app/pubspec.lock ./
 RUN flutter pub get
 COPY apps/app ./
 # API 基址在编译期注入 (生产指向 API 子域名)
-ARG API_BASE=https://api.wxenv.com/api/v1
+ARG API_BASE=https://broker.wxenv.com/api/v1
 RUN flutter build web --release --no-tree-shake-icons --dart-define=API_BASE=${API_BASE}
 
 FROM nginx:alpine AS runner
