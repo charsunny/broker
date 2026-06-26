@@ -7,9 +7,9 @@ PostgreSQL + Redis。一套 `docker-compose.prod.yml` 全部带起。
 
 | 服务 | 子域名 | 容器端口 |
 |---|---|---|
-| Broker Flutter Web | `commission.wxenv.com` | 80 |
-| Admin 后台 | `commission-admin.wxenv.com` | 80 |
-| NestJS API | `commission-api.wxenv.com` | 3000 |
+| Broker Flutter Web | `broker.wxenv.com` | 80 |
+| Admin 后台 | `admin.wxenv.com` | 80 |
+| NestJS API | `api.wxenv.com` | 3000 |
 
 > 改子域名: 编辑 `docker-compose.prod.yml` 里的 Traefik `Host(...)` 标签 + 两处构建参数
 > `API_BASE` / `VITE_API_BASE`(前端在编译期把 API 地址打进包里)。
@@ -52,9 +52,9 @@ PostgreSQL + Redis。一套 `docker-compose.prod.yml` 全部带起。
 
 ## 验证
 
-- `https://commission.wxenv.com` → Broker 对话测算页(欢迎语来自 API → 链路通)
-- `https://commission-admin.wxenv.com` → Admin 登录(用白名单手机号)→ 导入/审批/矩阵/回滚
-- `https://commission-api.wxenv.com/api/v1/broker/chat/message` → POST `{"messageType":"reset"}` 返回欢迎卡
+- `https://broker.wxenv.com` → Broker 对话测算页(欢迎语来自 API → 链路通)
+- `https://admin.wxenv.com` → Admin 登录(用白名单手机号)→ 导入/审批/矩阵/回滚
+- `https://api.wxenv.com/api/v1/broker/chat/message` → POST `{"messageType":"reset"}` 返回欢迎卡
 
 ## 说明
 

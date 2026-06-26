@@ -10,7 +10,7 @@ COPY apps/admin/package.json apps/admin/package.json
 RUN pnpm install --frozen-lockfile --filter @insurance/admin
 COPY apps/admin apps/admin
 # API 基址在编译期注入
-ARG VITE_API_BASE=https://commission-api.wxenv.com/api/v1
+ARG VITE_API_BASE=https://api.wxenv.com/api/v1
 RUN VITE_API_BASE=${VITE_API_BASE} pnpm --filter @insurance/admin build
 
 FROM nginx:alpine AS runner
