@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "flutter-web",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "5050", "--directory", "apps/app/build/web"],
+      "port": 5050
+    },
+    {
+      "name": "admin",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4300", "--directory", "apps/admin/dist"],
+      "port": 4300
+    }
+  ]
+}

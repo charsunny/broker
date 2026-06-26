@@ -1,0 +1,101 @@
+# 生产部署 (dokploy + Traefik)。三个对外服务挂 wxenv.com 子域名, PG/Redis 走内网。
+# 子域名 (可在 dokploy UI 或下方 labels 修改):
+#   commission.wxenv.com        → Broker Flutter Web
+#   commission-admin.wxenv.com  → Admin 后台
+#   commission-api.wxenv.com    → NestJS API
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: insurance
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-insurance}
+      POSTGRES_DB: insurance
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [internal]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U insurance"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    networks: [internal]
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://insurance:${POSTGRES_PASSWORD:-insurance}@postgres:5432/insurance
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?set-a-strong-secret}
+      JWT_EXPIRES_IN: 12h
+      BROKER_PHONE_WHITELIST: ${BROKER_PHONE_WHITELIST:-}
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks: [internal, dokploy-network]
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - "traefik.http.routers.commission-api.rule=Host(`commission-api.wxenv.com`)"
+      - traefik.http.routers.commission-api.entrypoints=websecure
+      - traefik.http.routers.commission-api.tls.certresolver=letsencrypt
+      - traefik.http.services.commission-api.loadbalancer.server.port=3000
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/app/Dockerfile
+      args:
+        API_BASE: https://commission-api.wxenv.com/api/v1
+    networks: [dokploy-network]
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - "traefik.http.routers.commission-web.rule=Host(`commission.wxenv.com`)"
+      - traefik.http.routers.commission-web.entrypoints=websecure
+      - traefik.http.routers.commission-web.tls.certresolver=letsencrypt
+      - traefik.http.services.commission-web.loadbalancer.server.port=80
+
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+      args:
+        VITE_API_BASE: https://commission-api.wxenv.com/api/v1
+    networks: [dokploy-network]
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - "traefik.http.routers.commission-admin.rule=Host(`commission-admin.wxenv.com`)"
+      - traefik.http.routers.commission-admin.entrypoints=websecure
+      - traefik.http.routers.commission-admin.tls.certresolver=letsencrypt
+      - traefik.http.services.commission-admin.loadbalancer.server.port=80
+
+networks:
+  internal: {}
+  dokploy-network:
+    external: true
+
+volumes:
+  pgdata: {}
+  redisdata: {}

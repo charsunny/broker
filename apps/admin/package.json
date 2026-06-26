@@ -1,0 +1,26 @@
+{
+  "name": "@insurance/admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Admin 后台: 费率导入 / JSONB 矩阵可视化 / HITL 审批 / 一键回滚",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4174",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "antd": "^5.21.4",
+    "axios": "^1.7.7",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.2",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  }
+}

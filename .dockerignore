@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+**/build
+**/.turbo
+apps/app/.dart_tool
+apps/app/.flutter-plugins-dependencies
+apps/admin/dist
+.git
+.github
+.claude
+docs
+*.log
+.env
+.env.*
+!.env.example
